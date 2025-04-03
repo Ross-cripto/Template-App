@@ -1,0 +1,52 @@
+services:
+  frontend:
+    build:
+      context: "./"
+      dockerfile: "./docker/react/Dockerfile"
+    env_file:
+      - "./client/.env"
+    ports:
+      - "${DOCKER_WEB_PORT_FORWARD:-127.0.0.1:5173}:80"
+    restart: "${DOCKER_RESTART_POLICY:-unless-stopped}"
+    depends_on:
+      mongodb:
+        condition: service_healthy
+    networks:
+      - app_network
+
+  backend:
+    build:
+          context: "."
+          dockerfile: "./docker/flask/Dockerfile"
+    env_file:
+          - "/server/.env"
+    ports:
+        - "${PORT:-5002}:5000"
+    depends_on:
+      - mongodb
+    restart: "${DOCKER_RESTART_POLICY:-unless-stopped}"
+    networks:
+      - app_network
+
+  mongodb:
+    image: "mongo:6"
+    environment:
+      MONGO_INITDB_ROOT_USERNAME: admin 
+      MONGO_INITDB_ROOT_PASSWORD: root
+      MONGO_INITDB_DATABASE: test
+    ports:
+      - "27017:27017"
+    networks:
+      - app_network
+    healthcheck:
+      test: ["CMD", "mongosh", "--eval", "db.adminCommand('ping')"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+
+volumes:
+  mongo_data:
+
+networks:
+  app_network:
+    driver: bridge
